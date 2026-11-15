@@ -236,11 +236,9 @@ if generate_clicked:
                                 ]
                             }
                         ],
-                        "generationConfig": {
-                            "temperature": temperature,
-                            "maxOutputTokens": max_tokens
-                        }
-                    },
+                       "generationConfig": {
+    "maxOutputTokens": max_tokens
+}
                     timeout=180
                 )
 
