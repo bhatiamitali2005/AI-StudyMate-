@@ -1,4 +1,3 @@
-
 import requests
 import streamlit as st
 
@@ -9,8 +8,8 @@ st.set_page_config(
     layout="wide"
 )
 
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"
-MODEL_NAME = "gemini-3.8-flash"
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+MODEL_NAME = "openai/gpt-oss-120b"
 
 # ---------------- CUSTOM STYLING ----------------
 st.markdown("""
@@ -47,7 +46,7 @@ st.markdown(
 
 st.info(
     "Learn concepts, prepare exam answers, summarize notes "
-    "and generate practice questions using a local AI model."
+"and generate practice questions using AI."
 )
 
 # ---------------- SIDEBAR SETTINGS ----------------
@@ -207,6 +206,7 @@ Important:
 """
 
 
+
 # ---------------- GENERATION ----------------
 if generate_clicked:
     if not topic.strip():
@@ -218,46 +218,44 @@ if generate_clicked:
         st.subheader("🧠 Generated Study Answer")
 
         try:
+            api_key = st.secrets["GROQ_API_KEY"]
+
             with st.spinner("AI StudyMate is generating your answer..."):
 
-                api_key = st.secrets["GEMINI_API_KEY"]
-
                 response = requests.post(
-    GEMINI_URL,
-    headers={
-        "Content-Type": "application/json",
-        "x-goog-api-key": api_key
-    },
-    json={
-        "contents": [
-            {
-                "parts": [
-                    {"text": prompt}
-                ]
-            }
-        ],
-        "generationConfig": {
-            "maxOutputTokens": max_tokens
-        }
-    },
-    timeout=180
-)
+                    GROQ_URL,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {api_key}"
+                    },
+                    json={
+                        "model": MODEL_NAME,
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": prompt
+                            }
+                        ],
+                        "temperature": temperature,
+                        "max_completion_tokens": max_tokens,
+                        "reasoning_effort": "low"
+                    },
+                    timeout=120
+                )
+
                 response.raise_for_status()
                 result = response.json()
 
-                candidates = result.get("candidates", [])
+                choices = result.get("choices", [])
                 answer = ""
 
-                if candidates:
-                    parts = candidates[0].get(
-                        "content", {}
-                    ).get("parts", [])
-
-                    answer = "\n".join(
-                        part.get("text", "")
-                        for part in parts
-                        if part.get("text")
-                    ).strip()
+                if choices:
+                    answer = (
+                        choices[0]
+                        .get("message", {})
+                        .get("content", "")
+                        .strip()
+                    )
 
             if answer:
                 st.markdown(answer)
@@ -284,19 +282,18 @@ if generate_clicked:
 
         except KeyError:
             st.error(
-                "Gemini API key not found. Please configure "
-                "GEMINI_API_KEY in Streamlit Secrets."
+                "Groq API key not found. Please configure "
+                "GROQ_API_KEY in Streamlit Secrets."
             )
 
         except requests.exceptions.Timeout:
             st.error(
-                "The model took too long to respond. "
-                "Please try again with a shorter prompt."
+                "Groq took too long to respond. Please try again."
             )
 
         except requests.exceptions.HTTPError as error:
             st.error(
-                f"Gemini API request failed: {error.response.text}"
+                f"Groq API request failed: {error.response.text}"
             )
 
         except requests.exceptions.RequestException as error:
@@ -313,3 +310,4 @@ st.caption(
     "AI StudyMate | "
     "Educational use only — verify important information."
 )
+
