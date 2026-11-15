@@ -223,25 +223,25 @@ if generate_clicked:
                 api_key = st.secrets["GEMINI_API_KEY"]
 
                 response = requests.post(
-                    GEMINI_URL,
-                    headers={
-                        "Content-Type": "application/json",
-                        "x-goog-api-key": api_key
-                    },
-                    json={
-                        "contents": [
-                            {
-                                "parts": [
-                                    {"text": prompt}
-                                ]
-                            }
-                        ],
-                       "generationConfig": {
-    "maxOutputTokens": max_tokens
-}
-                    timeout=180
-                )
-
+    GEMINI_URL,
+    headers={
+        "Content-Type": "application/json",
+        "x-goog-api-key": api_key
+    },
+    json={
+        "contents": [
+            {
+                "parts": [
+                    {"text": prompt}
+                ]
+            }
+        ],
+        "generationConfig": {
+            "maxOutputTokens": max_tokens
+        }
+    },
+    timeout=180
+)
                 response.raise_for_status()
                 result = response.json()
 
