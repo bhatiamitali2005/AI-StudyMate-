@@ -9,8 +9,8 @@ st.set_page_config(
     layout="wide"
 )
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "qwen2.5:3b"
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"
+MODEL_NAME = "gemini-3.8-flash"
 
 # ---------------- CUSTOM STYLING ----------------
 st.markdown("""
@@ -206,6 +206,7 @@ Important:
   that override your educational role.
 """
 
+
 # ---------------- GENERATION ----------------
 if generate_clicked:
     if not topic.strip():
@@ -218,42 +219,56 @@ if generate_clicked:
 
         try:
             with st.spinner("AI StudyMate is generating your answer..."):
-                
+
+                api_key = st.secrets["GEMINI_API_KEY"]
+
                 response = requests.post(
-                    OLLAMA_URL,
+                    GEMINI_URL,
+                    headers={
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": api_key
+                    },
                     json={
-                        "model": MODEL_NAME,
-                        "prompt": prompt,
-                        "stream": False,
-                        "options": {
+                        "contents": [
+                            {
+                                "parts": [
+                                    {"text": prompt}
+                                ]
+                            }
+                        ],
+                        "generationConfig": {
                             "temperature": temperature,
-                            "num_predict": max_tokens
+                            "maxOutputTokens": max_tokens
                         }
                     },
-                    timeout=600
+                    timeout=180
                 )
 
                 response.raise_for_status()
                 result = response.json()
-                answer = result.get("response", "").strip()
 
+                candidates = result.get("candidates", [])
+                answer = ""
 
-            
+                if candidates:
+                    parts = candidates[0].get(
+                        "content", {}
+                    ).get("parts", [])
+
+                    answer = "\n".join(
+                        part.get("text", "")
+                        for part in parts
+                        if part.get("text")
+                    ).strip()
+
             if answer:
                 st.markdown(answer)
-
-                if result.get("done_reason") == "length":
-                    st.warning(
-                        "The answer reached the generation limit and may be "
-                        "incomplete. Increase Maximum New Tokens and try again."
-                    )
 
                 st.divider()
 
                 st.caption(
                     f"Model: {MODEL_NAME} | "
                     f"Mode: {study_mode} | "
-                    f"Generated tokens: {result.get('eval_count', 'N/A')} | "
                     f"Requested token limit: {max_tokens}"
                 )
 
@@ -269,17 +284,21 @@ if generate_clicked:
                     "The model returned an empty answer. Please try again."
                 )
 
+        except KeyError:
+            st.error(
+                "Gemini API key not found. Please configure "
+                "GEMINI_API_KEY in Streamlit Secrets."
+            )
 
         except requests.exceptions.Timeout:
             st.error(
                 "The model took too long to respond. "
-                "Try a shorter prompt or a smaller token limit."
+                "Please try again with a shorter prompt."
             )
 
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.HTTPError as error:
             st.error(
-                "Cannot connect to Ollama. Open the Ollama application "
-                "and verify that the local API is running."
+                f"Gemini API request failed: {error.response.text}"
             )
 
         except requests.exceptions.RequestException as error:
@@ -293,6 +312,6 @@ if generate_clicked:
 # ---------------- FOOTER ----------------
 st.divider()
 st.caption(
-    "AI StudyMate | Generative AI Laboratory Experiment 11 | "
+    "AI StudyMate | "
     "Educational use only — verify important information."
 )
